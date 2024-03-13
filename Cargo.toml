@@ -1,0 +1,9 @@
+[package]
+name = "fdcanusb"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+hex = "0.4.3"
+serial2 = "0.2.19"
+log = "0.4.21"
