@@ -154,14 +154,14 @@ impl TryFrom<FdCanUSBFrame> for CanFdFrame {
         // R/r frame was remote/data frame
         // tNNNNN timestamp of receipt measured in microseconds
         // fNN integer ID of which filter matched this frame
-        let check_flag = |c: &str| -> (Option<bool>, Option<String>) {
+        let check_flag = |c: &str| -> (Option<bool>, Option<&str>) {
             flags
                 .iter()
                 .find(|x| x.to_lowercase().starts_with(c))
                 .map_or((None, None), |x| {
                     (
                         Some(x.starts_with(c)),
-                        x.strip_prefix(c).map(|x| x.to_owned()),
+                        x.strip_prefix(c).filter(|x| !x.is_empty()),
                     )
                 })
         };
