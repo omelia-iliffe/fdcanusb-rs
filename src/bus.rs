@@ -13,10 +13,13 @@ where
 }
 
 impl FdCanUSB<serial2::SerialPort> {
-    pub fn new<P: AsRef<Path>>(path: P, settings: impl IntoSettings) -> std::io::Result<Self> {
-        let mut transport = serial2::SerialPort::open(path, settings)?;
+    pub fn open<P: AsRef<Path>>(
+        path: P,
+        serial_settings: impl IntoSettings,
+    ) -> std::io::Result<Self> {
+        let mut transport = serial2::SerialPort::open(path, serial_settings)?;
         transport.set_read_timeout(Duration::from_millis(100))?;
-        Ok(FdCanUSB { transport })
+        Ok(Self::new(transport))
     }
 }
 
@@ -24,6 +27,10 @@ impl<T> FdCanUSB<T>
 where
     T: std::io::Write + std::io::Read,
 {
+    pub fn new(transport: T) -> Self {
+        FdCanUSB { transport }
+    }
+
     pub fn transfer_single(
         &mut self,
         frame: CanFdFrame,
@@ -46,7 +53,7 @@ where
     }
     pub fn read_ok(&mut self) -> std::io::Result<()> {
         let mut buffer = [0; 4];
-        let read_num = self.transport.read(&mut buffer).unwrap();
+        let read_num = self.transport.read(&mut buffer)?;
         match buffer.starts_with(b"OK") {
             true => Ok(()),
             false => Err(std::io::Error::new(
@@ -60,7 +67,7 @@ where
     }
     pub fn read_response(&mut self) -> std::io::Result<CanFdFrame> {
         let mut buffer = [0; 200];
-        let read_num = self.transport.read(&mut buffer).unwrap();
+        let read_num = self.transport.read(&mut buffer)?;
         let response = String::from_utf8_lossy(&buffer[..read_num]);
         log::trace!("< {:?}", response);
         let response = FdCanUSBFrame::from(response.deref());
@@ -78,7 +85,7 @@ mod tests {
 
     #[test]
     fn test_fdcanusb() {
-        let mut fdcanusb = FdCanUSB::new("/dev/fdcanusb", 9600).unwrap();
+        let mut fdcanusb = FdCanUSB::open("/dev/fdcanusb", 9600).unwrap();
         let frame = FdCanUSBFrame::from(
             "can send 8001 01000A0D200000C07F0D270000004011001F01130D505050 b\n",
         );

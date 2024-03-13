@@ -155,16 +155,15 @@ impl TryFrom<FdCanUSBFrame> for CanFdFrame {
         // tNNNNN timestamp of receipt measured in microseconds
         // fNN integer ID of which filter matched this frame
         let check_flag = |c: &str| -> (Option<bool>, Option<String>) {
-            let Some(flag) = flags.iter().find(|x| x.to_lowercase().starts_with(c)) else {
-                return (None, None);
-            };
-
-            let data = match flag.to_lowercase().strip_prefix(c).unwrap() {
-                "" => None,
-                x => Some(x.to_owned()),
-            };
-
-            (Some(flag.starts_with(c)), data)
+            flags
+                .iter()
+                .find(|x| x.to_lowercase().starts_with(c))
+                .map_or((None, None), |x| {
+                    (
+                        Some(x.starts_with(c)),
+                        x.strip_prefix(c).map(|x| x.to_owned()),
+                    )
+                })
         };
 
         let (extended_id, None) = check_flag("e") else {
