@@ -2,6 +2,8 @@
 name = "fdcanusb"
 version = "0.1.0"
 edition = "2021"
+description = "Protocol implementation for the FDCANUSB by MJBOTS"
+license = "MIT"
 
 [dependencies]
 hex = "0.4.3"
