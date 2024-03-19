@@ -1,5 +1,4 @@
 use serial2::IntoSettings;
-use std::ops::Deref;
 use std::path::Path;
 use std::str;
 use std::time::Duration;
