@@ -4,6 +4,8 @@ version = "0.1.0"
 edition = "2021"
 description = "Protocol implementation for the FDCANUSB by MJBOTS"
 license = "MIT"
+readme = "README.md"
+repository = "https://github.com/omelia-iliffe/fdcanusb-rs"
 
 [dependencies]
 hex = "0.4.3"
