@@ -1,15 +1,28 @@
+/// `CanFdFrame` represents a single frame of data on the CAN bus.
 #[derive(Debug, Default)]
 pub struct CanFdFrame {
+    /// The arbitration id of the frame.
+    ///
+    /// TODO: Integrate with the `CanId` type from the `socketcan` crate? or reimplement it?
     pub arbitration_id: u16,
+    /// The data of the frame, up to 64 bytes.
     pub data: Vec<u8>,
+    /// If the frame has an extended id.
     pub extended_id: Option<bool>,
+    /// If the frame has bit rate switching.
     pub brs: Option<bool>,
+    /// If the frame is a CAN FD frame.
     pub fd_can_frame: Option<bool>,
+    /// If the frame is a remote frame.
     pub remote_frame: Option<bool>,
+    /// The timestamp of the frame.
     pub timestamp: Option<u32>,
 }
 
 impl CanFdFrame {
+    /// Create a new `CanFdFrame` with the given arbitration id and data.
+    ///
+    /// Use `new_with_flags` to set the flags.
     pub fn new(arbitration_id: u16, data: &[u8]) -> CanFdFrame {
         CanFdFrame {
             arbitration_id,
@@ -18,6 +31,7 @@ impl CanFdFrame {
         }
     }
 
+    /// Create a new `CanFdFrame` with the given arbitration id, data and flags.
     pub fn new_with_flags(
         arbitration_id: u16,
         data: &[u8],
@@ -39,16 +53,24 @@ impl CanFdFrame {
     }
 }
 
+/// The FdCanUSB communicates over Serial using ascii encoded frames.
+/// `FdCanUSBFrame` is a wrapper around the ascii encoded frames.
+///
+/// They can be converted to and from `CanFdFrame`
 #[derive(Debug)]
 pub struct FdCanUSBFrame(String);
 
 impl From<&str> for FdCanUSBFrame {
+    /// Create a `FdCanUSBFrame` from a string.
+    /// **No** validation is performed to check if it is a valid frame.
+    /// The frame will be validated when converting to a `CanFdFrame`
     fn from(data: &str) -> FdCanUSBFrame {
         FdCanUSBFrame(data.to_owned())
     }
 }
 
 impl FdCanUSBFrame {
+    /// Get the ascii encoded frame as a byte slice.
     pub fn as_bytes(&self) -> &[u8] {
         self.0.as_bytes()
     }
@@ -117,23 +139,14 @@ impl TryFrom<FdCanUSBFrame> for CanFdFrame {
                 ));
             }
         };
-        //
-        // if iter.next() != Some("rcv") {
-        //     return Err(std::io::Error::new(
-        //         std::io::ErrorKind::InvalidData,
-        //         format!("Expected 'rcv', Found: {:?}", iter.next()),
-        //     ));
-        // }
 
-        let id = iter.next().ok_or(std::io::Error::new(
-            std::io::ErrorKind::InvalidData,
-            "Expected id, Found EOL",
-        ))?;
+        let id = iter.next().ok_or_else(|| {
+            std::io::Error::new(std::io::ErrorKind::InvalidData, "Expected id, Found EOL")
+        })?;
 
-        let data = iter.next().ok_or(std::io::Error::new(
-            std::io::ErrorKind::InvalidData,
-            "Expected data, Found EOL",
-        ))?;
+        let data = iter.next().ok_or_else(|| {
+            std::io::Error::new(std::io::ErrorKind::InvalidData, "Expected data, Found EOL")
+        })?;
 
         let flags: Vec<&str> = iter.collect();
 
@@ -144,8 +157,11 @@ impl TryFrom<FdCanUSBFrame> for CanFdFrame {
             )
         })?;
 
-        let data = hex::decode(data).map_err(|_| {
-            std::io::Error::new(std::io::ErrorKind::InvalidData, "Unable to decode data")
+        let data = hex::decode(data).map_err(|e| {
+            std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                format!("Unable to decode data. {e}"),
+            )
         })?;
 
         // E/e frame was received with extended/classic ID
@@ -239,7 +255,7 @@ mod tests {
     fn test_can_fd_frame_decode() {
         let frame =
             FdCanUSBFrame("rcv 8001 01000A0D200000C07F0D270000004011001F01130D505050\n".to_owned());
-        let decode_frame: CanFdFrame = frame.try_into().unwrap();
+        let decode_frame: CanFdFrame = frame.try_into().expect("Failed to decode frame");
         assert_eq!(decode_frame.arbitration_id, 0x8001);
         assert_eq!(
             decode_frame.data,
@@ -276,7 +292,7 @@ mod tests {
             "rcv 8001 01000A0D200000C07F0D270000004011001F01130D505050 e b F r f-1 t00100"
                 .to_owned(),
         );
-        let decode_frame: CanFdFrame = frame.try_into().unwrap();
+        let decode_frame: CanFdFrame = frame.try_into().expect("Failed to decode frame");
         assert_eq!(decode_frame.arbitration_id, 0x8001);
         assert_eq!(
             decode_frame.data,
