@@ -8,18 +8,24 @@ use crate::frames::{CanFdFrame, FdCanUSBFrame};
 
 /// FdCanUSB communications struct
 ///
-/// Can be used with any transport type that implements `std::io::Write` and `std::io::Read`
-/// The baud rate is unused, as the FdCanUSB communicates via USB CDC
-///
-/// For convenience, we provide a `FdCanUSB` implementation for `serial2::SerialPort`.
-///
-/// ## Example
+/// Can be used with any transport type that implements [`std::io::Write`] and [`std::io::Read`]
+/// The baud rate is unused, as the [FdCanUSB] communicates via USB CDC
+/// ### Example
 /// ```
 /// use fdcanusb::FdCanUSB;
 ///
 /// let transport = serial2::SerialPort::open("/dev/fdcanusb", serial2::KeepSettings).expect("Failed to open serial port");
 /// let mut fdcanusb = FdCanUSB::new(transport);
 /// ```
+/// ## `serial2` Integration
+/// To use the `FdCanUSB` with a [`serial2::SerialPort`](https://docs.rs/serial2/latest/serial2/), you can use the [`FdCanUSB::open`] method.
+/// ### Example
+/// ```
+/// use fdcanusb::FdCanUSB;
+///
+/// let mut fdcanusb = FdCanUSB::open("/dev/fdcanusb", serial2::KeepSettings).expect("Failed to open serial port");
+/// ```
+
 #[derive(Debug)]
 
 pub struct FdCanUSB<T>
@@ -30,12 +36,8 @@ where
 }
 
 impl FdCanUSB<serial2::SerialPort> {
-    /// For convenience, we provide a `FdCanUSB` implementation for `serial2::SerialPort`.
-    /// ```
-    /// use fdcanusb::FdCanUSB;
-    ///
-    /// let mut fdcanusb = FdCanUSB::open("/dev/fdcanusb", serial2::KeepSettings).expect("Failed to open serial port");
-    /// ```
+    /// For convenience, we provide a [`FdCanUSB`] implementation for [`serial2::SerialPort`].
+
     pub fn open<P: AsRef<Path>>(
         path: P,
         serial_settings: impl IntoSettings,
@@ -50,7 +52,7 @@ impl<T> FdCanUSB<T>
 where
     T: std::io::Write + std::io::Read,
 {
-    /// Create a new FdCanUSB instance
+    /// Create a new [FdCanUSB] instance
     pub fn new(transport: T) -> Self {
         FdCanUSB { transport }
     }
@@ -82,7 +84,7 @@ where
         Ok(())
     }
 
-    /// The FdCanUSB responds with `OK` after a correct frame is parsed.
+    /// The [FdCanUSB] responds with `OK` after a correct frame is parsed.
     /// `read_ok` waits for this response, and returns an error if it is not received.
     pub fn read_ok(&mut self) -> std::io::Result<()> {
         let mut buffer = [0; 4];
@@ -99,7 +101,8 @@ where
         }
     }
 
-    /// Read a response frame from the FdCanUSB.
+    /// Read a response frame from the [FdCanUSB].
+    /// Responses are logged at the `trace` level by default.
     pub fn read_response(&mut self) -> std::io::Result<CanFdFrame> {
         let mut buffer = [0; 200];
         let read_num = self.transport.read(&mut buffer)?;

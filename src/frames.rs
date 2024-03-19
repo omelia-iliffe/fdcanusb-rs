@@ -3,7 +3,7 @@
 pub struct CanFdFrame {
     /// The arbitration id of the frame.
     ///
-    /// TODO: Integrate with the `CanId` type from the `socketcan` crate? or reimplement it?
+    // TODO: Integrate with the `CanId` type from the `socketcan` crate? or reimplement it?
     pub arbitration_id: u16,
     /// The data of the frame, up to 64 bytes.
     pub data: Vec<u8>,
@@ -22,7 +22,7 @@ pub struct CanFdFrame {
 impl CanFdFrame {
     /// Create a new `CanFdFrame` with the given arbitration id and data.
     ///
-    /// Use `new_with_flags` to set the flags.
+    /// Use [`CanFdFrame::new_with_flags`] to set the flags.
     pub fn new(arbitration_id: u16, data: &[u8]) -> CanFdFrame {
         CanFdFrame {
             arbitration_id,
