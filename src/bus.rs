@@ -1,8 +1,3 @@
-use serial2::IntoSettings;
-use std::path::Path;
-use std::str;
-use std::time::Duration;
-
 use crate::frames::{CanFdFrame, FdCanUSBFrame};
 
 /// FdCanUSB communications struct
@@ -11,10 +6,12 @@ use crate::frames::{CanFdFrame, FdCanUSBFrame};
 /// The baud rate is unused, as the [FdCanUSB] communicates via USB CDC
 /// ### Example
 /// ```
-/// use fdcanusb::FdCanUSB;
-///
-/// let transport = serial2::SerialPort::open("/dev/fdcanusb", serial2::KeepSettings).expect("Failed to open serial port");
+/// use fdcanusb::{FdCanUSB, serial2};
+/// # fn main() -> Result<(), std::io::Error> {
+/// let transport = serial2::SerialPort::open("/dev/fdcanusb", serial2::KeepSettings)?;
 /// let mut fdcanusb = FdCanUSB::new(transport);
+/// # Ok(())
+/// # }
 /// ```
 /// ## `serial2` Integration
 /// To use the `FdCanUSB` with a [`serial2::SerialPort`](https://docs.rs/serial2/latest/serial2/), you can use the [`FdCanUSB::open`] method.
@@ -34,15 +31,17 @@ where
     transport: T,
 }
 
+#[cfg(feature = "serial2")]
 impl FdCanUSB<serial2::SerialPort> {
     /// For convenience, we provide a [`FdCanUSB`] implementation for [`serial2::SerialPort`].
+    /// Enable with the `serial2` feature.
 
-    pub fn open<P: AsRef<Path>>(
+    pub fn open<P: AsRef<std::path::Path>>(
         path: P,
-        serial_settings: impl IntoSettings,
+        serial_settings: impl serial2::IntoSettings,
     ) -> std::io::Result<Self> {
         let mut transport = serial2::SerialPort::open(path, serial_settings)?;
-        transport.set_read_timeout(Duration::from_millis(100))?;
+        transport.set_read_timeout(std::time::Duration::from_millis(100))?;
         Ok(Self::new(transport))
     }
 }
@@ -105,7 +104,7 @@ where
     pub fn read_response(&mut self) -> std::io::Result<CanFdFrame> {
         let mut buffer = [0; 200];
         let read_num = self.transport.read(&mut buffer)?;
-        let response = str::from_utf8(&buffer[..read_num]).map_err(|e| {
+        let response = std::str::from_utf8(&buffer[..read_num]).map_err(|e| {
             std::io::Error::new(
                 std::io::ErrorKind::InvalidData,
                 format!("Failed to parse response: {}", e),
