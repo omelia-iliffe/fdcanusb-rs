@@ -42,7 +42,16 @@ impl FdCanUSB<serial2::SerialPort> {
     ) -> std::io::Result<Self> {
         let mut transport = serial2::SerialPort::open(path, serial_settings)?;
         transport.set_read_timeout(std::time::Duration::from_millis(100))?;
+        transport.flush()?;
+        transport.discard_buffers()?;
         Ok(Self::new(transport))
+    }
+
+    // Flush the FdCanUSB.
+    // This can be important to do when initializing the FdCanUSB, as any data in the buffer can cause lost sync issues.
+    pub fn flush(&mut self) -> std::io::Result<()> {
+        self.transport.flush()?;
+        self.transport.discard_buffers()
     }
 }
 
@@ -113,12 +122,6 @@ where
         log::trace!("< {:?}", response);
         let response = FdCanUSBFrame::from(response);
         response.try_into()
-    }
-
-    /// Flush the FdCanUSB.
-    /// This can be important to do when initializing the FdCanUSB, as any data in the buffer can cause lost sync issues.
-    pub fn flush(&mut self) -> std::io::Result<()> {
-        self.transport.flush()
     }
 }
 
