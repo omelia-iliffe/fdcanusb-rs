@@ -21,35 +21,49 @@ pub struct CanFdFrame {
 
 impl CanFdFrame {
     /// Create a new `CanFdFrame` with the given arbitration id and data.
+    /// returns an `Err` if the length of `data` is > 64
     ///
     /// Use [`CanFdFrame::new_with_flags`] to set the flags.
-    pub fn new(arbitration_id: u16, data: &[u8]) -> CanFdFrame {
-        CanFdFrame {
+    pub fn new(arbitration_id: u16, data: &[u8]) -> std::io::Result<CanFdFrame> {
+        if data.len() > 64 {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                "Data length must be less than or equal to 64 bytes",
+            ));
+        }
+        Ok(CanFdFrame {
             arbitration_id,
             data: data.to_owned(),
             ..Default::default()
-        }
+        })
     }
 
     /// Create a new `CanFdFrame` with the given arbitration id, data and flags.
+    /// returns an `Err` if the length of `data` is > 64
     pub fn new_with_flags(
         arbitration_id: u16,
         data: &[u8],
         extended_id: Option<bool>,
         brs: Option<bool>,
-        fdcan_frame: Option<bool>,
+        fd_can_frame: Option<bool>,
         remote_frame: Option<bool>,
         timestamp: Option<u32>,
-    ) -> CanFdFrame {
-        CanFdFrame {
+    ) -> std::io::Result<CanFdFrame> {
+        if data.len() > 64 {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                "Data length must be less than or equal to 64 bytes",
+            ));
+        }
+        Ok(CanFdFrame {
             arbitration_id,
             data: data.to_owned(),
             extended_id,
             brs,
-            fd_can_frame: fdcan_frame,
+            fd_can_frame,
             remote_frame,
             timestamp,
-        }
+        })
     }
 }
 
@@ -76,14 +90,15 @@ impl FdCanUSBFrame {
     }
 }
 
+// TODO: change to use `TryFrom`
 impl From<CanFdFrame> for FdCanUSBFrame {
     fn from(frame: CanFdFrame) -> FdCanUSBFrame {
         let id = hex::encode_upper(frame.arbitration_id.to_be_bytes());
-
+        let num_bytes = frame.data.len();
         let data = hex::encode_upper(frame.data);
         let data_len = {
-            match data.len() {
-                ..=8 => data.len(),
+            match num_bytes {
+                ..=8 => num_bytes,
                 9..=12 => 12,
                 13..=16 => 16,
                 17..=20 => 20,
@@ -91,10 +106,10 @@ impl From<CanFdFrame> for FdCanUSBFrame {
                 25..=32 => 32,
                 33..=48 => 48,
                 49..=64 => 64,
-                _ => panic!("Invalid data length"),
+                _ => panic!("Invalid data length {num_bytes}"),
             }
         };
-        let padding_len = (data_len - data.len()) / 2; //data_len will always be equal or greater than data.len()
+        let padding_len = (data_len - num_bytes) / 2; // data_len will always be equal or greater than num_bytes
         let padding: String = (0..padding_len).map(|_| "50").collect();
         let data = format!("{data}{padding}");
         let flags = {
