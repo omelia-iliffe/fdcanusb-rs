@@ -94,7 +94,7 @@ where
     /// The [FdCanUSB] responds with `OK` after a correct frame is parsed.
     /// `read_ok` waits for this response, and returns an error if it is not received.
     pub fn read_ok(&mut self) -> std::io::Result<()> {
-        let mut buffer = [0; 4];
+        let mut buffer = [0; 100];
         let read_num = self.transport.read(&mut buffer)?;
         match buffer.starts_with(b"OK") {
             true => Ok(()),
