@@ -1,4 +1,4 @@
-# Unreleased
+# Version 0.3.0 - 09-08-2024
 - **Major**: Changed `CanFdFrame::new` and `CanFdFrame::new_with_data` to `CanFdFrame::new_standard` and `CanFdFrame::new_with_flags` to return Err if more than 64 bytes are provided.
 - **Major**: Added `error.rs` and error types to reduce usage of `std::io::Error`.
 - **Major**: Fixed an incorrect `/ 2` when calculating the `padding_len` for frames.
