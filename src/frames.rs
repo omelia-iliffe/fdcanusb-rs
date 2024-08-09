@@ -109,7 +109,7 @@ impl From<CanFdFrame> for FdCanUSBFrame {
                 _ => panic!("Invalid data length {num_bytes}"),
             }
         };
-        let padding_len = (data_len - num_bytes) / 2; // data_len will always be equal or greater than num_bytes
+        let padding_len = data_len - num_bytes; // data_len will always be equal or greater than num_bytes
         let padding: String = (0..padding_len).map(|_| "50").collect();
         let data = format!("{data}{padding}");
         let flags = {
