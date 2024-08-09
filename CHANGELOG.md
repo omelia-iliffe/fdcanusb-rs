@@ -1,7 +1,8 @@
-# Unreleased
-- **Major**: Changed `CanFdFrame::new` and `CanFdFrame::new_with_data` to `CanFdFrame::new_standard` and `CanFdFrame::new_with_flags` to return Err if more than 64 bytes are provided.
+# Version 0.4.0 - 09-08-2024
 - **Major**: Added `error.rs` and error types to reduce usage of `std::io::Error`.
 - **Major**: Fixed an incorrect `/ 2` when calculating the `padding_len` for frames.
+# Version 0.3.0 - 17-06-2024
+- **Major**: Changed `CanFdFrame::new` and `CanFdFrame::new_with_data` to return Err if more than 64 bytes are provided.
 - **Minor**: Moved the `flush` method to the `serial2` feature to use the `discard_buffers` method in addition to `flush`.
 - **Minor**: Increased the `read_ok` buffer to 100 bytes to read the error message if one occurs. Ideally this would read all bytes not just 100.
 # Version 0.2.0 - 25-03-2024
