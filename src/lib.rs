@@ -19,6 +19,7 @@
 //!     - Enables re-exporting of the [`serial2`] crate and the [`FdCanUSB::open`] fn.
 
 mod bus;
+mod error;
 mod frames;
 
 pub use bus::FdCanUSB;

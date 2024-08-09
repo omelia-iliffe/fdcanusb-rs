@@ -1,3 +1,5 @@
+use crate::error::{InvalidFrameLength, ParseError};
+
 /// `CanFdFrame` represents a single frame of data on the CAN bus.
 #[derive(Debug, Default)]
 pub struct CanFdFrame {
@@ -24,12 +26,9 @@ impl CanFdFrame {
     /// returns an `Err` if the length of `data` is > 64
     ///
     /// Use [`CanFdFrame::new_with_flags`] to set the flags.
-    pub fn new(arbitration_id: u16, data: &[u8]) -> std::io::Result<CanFdFrame> {
+    pub fn new(arbitration_id: u16, data: &[u8]) -> Result<CanFdFrame, InvalidFrameLength> {
         if data.len() > 64 {
-            return Err(std::io::Error::new(
-                std::io::ErrorKind::InvalidData,
-                "Data length must be less than or equal to 64 bytes",
-            ));
+            return Err(InvalidFrameLength(data.len()));
         }
         Ok(CanFdFrame {
             arbitration_id,
@@ -48,12 +47,9 @@ impl CanFdFrame {
         fd_can_frame: Option<bool>,
         remote_frame: Option<bool>,
         timestamp: Option<u32>,
-    ) -> std::io::Result<CanFdFrame> {
+    ) -> Result<CanFdFrame, InvalidFrameLength> {
         if data.len() > 64 {
-            return Err(std::io::Error::new(
-                std::io::ErrorKind::InvalidData,
-                "Data length must be less than or equal to 64 bytes",
-            ));
+            return Err(InvalidFrameLength(data.len()));
         }
         Ok(CanFdFrame {
             arbitration_id,
@@ -136,48 +132,37 @@ impl From<CanFdFrame> for FdCanUSBFrame {
 }
 
 impl TryFrom<FdCanUSBFrame> for CanFdFrame {
-    type Error = std::io::Error;
+    type Error = ParseError;
     fn try_from(data: FdCanUSBFrame) -> Result<Self, Self::Error> {
         let mut iter = data.0.trim().split(' ');
         match iter.next() {
             Some("rcv") => {}
             Some(unexpected) => {
-                return Err(std::io::Error::new(
-                    std::io::ErrorKind::InvalidData,
-                    format!("Expected 'rcv', Found: {:?}", unexpected),
-                ));
+                return Err(ParseError::UnexpectedData {
+                    expected: "rcv".to_string(),
+                    received: unexpected.to_string(),
+                })
             }
             None => {
-                return Err(std::io::Error::new(
-                    std::io::ErrorKind::InvalidData,
-                    "Expected 'rcv', Found EOL",
-                ));
+                return Err(ParseError::UnexpectedEOL {
+                    expected: "rcv".to_string(),
+                })
             }
         };
 
-        let id = iter.next().ok_or_else(|| {
-            std::io::Error::new(std::io::ErrorKind::InvalidData, "Expected id, Found EOL")
+        let id = iter.next().ok_or_else(|| ParseError::UnexpectedEOL {
+            expected: "id".to_string(),
         })?;
 
-        let data = iter.next().ok_or_else(|| {
-            std::io::Error::new(std::io::ErrorKind::InvalidData, "Expected data, Found EOL")
+        let data = iter.next().ok_or_else(|| ParseError::UnexpectedEOL {
+            expected: "data".to_string(),
         })?;
 
         let flags: Vec<&str> = iter.collect();
 
-        let arbitration_id = u16::from_str_radix(id, 16).map_err(|_| {
-            std::io::Error::new(
-                std::io::ErrorKind::InvalidData,
-                format!("Unable to parse arbitration id: {}", id),
-            )
-        })?;
+        let arbitration_id = u16::from_str_radix(id, 16).map_err(ParseError::ID)?;
 
-        let data = hex::decode(data).map_err(|e| {
-            std::io::Error::new(
-                std::io::ErrorKind::InvalidData,
-                format!("Unable to decode data. {e}"),
-            )
-        })?;
+        let data = hex::decode(data)?;
 
         // E/e frame was received with extended/classic ID
         // B/b frame was received with/without bitrate switching
@@ -196,42 +181,30 @@ impl TryFrom<FdCanUSBFrame> for CanFdFrame {
                     )
                 })
         };
-
-        let (extended_id, None) = check_flag("e") else {
-            return Err(std::io::Error::new(
-                std::io::ErrorKind::InvalidData,
-                "Unexpected data with 'e' flag",
-            ));
-        };
-        let (brs, None) = check_flag("b") else {
-            return Err(std::io::Error::new(
-                std::io::ErrorKind::InvalidData,
-                "Unexpected data with 'b' flag",
-            ));
-        };
-        let (fd_can_frame, None) = check_flag("f") else {
-            return Err(std::io::Error::new(
-                std::io::ErrorKind::InvalidData,
-                "Unexpected data with 'f' flag",
-            ));
-        };
-        let (remote_frame, None) = check_flag("r") else {
-            return Err(std::io::Error::new(
-                std::io::ErrorKind::InvalidData,
-                "Unexpected data with 'r' flag",
-            ));
-        };
-        let (_, timestamp) = check_flag("t");
-        let timestamp: Option<u32> = match timestamp.map(|x| x.parse()) {
-            Some(Ok(x)) => Some(x),
-            Some(Err(e)) => {
-                return Err(std::io::Error::new(
-                    std::io::ErrorKind::InvalidData,
-                    format!("Unable to parse timestamp data: {}", e),
-                ));
+        let check_flag_no_data = |c: &str| -> Result<Option<bool>, ParseError> {
+            let (flag, data) = check_flag(c);
+            if let Some(data) = data {
+                return Err(ParseError::UnexpectedFlagData {
+                    flag: c.to_string(),
+                    data: data.to_string(),
+                });
             }
-            None => None,
+            Ok(flag)
         };
+
+        let extended_id = check_flag_no_data("e")?;
+
+        let brs = check_flag_no_data("b")?;
+
+        let fd_can_frame = check_flag_no_data("f")?;
+
+        let remote_frame = check_flag_no_data("r")?;
+
+        let (_, timestamp) = check_flag("t");
+        let timestamp: Option<u32> = timestamp
+            .map(|x| x.parse())
+            .transpose()
+            .map_err(ParseError::TimeStamp)?;
 
         // let filter_id = check_flag("f"); // will conflict with frame flag TODO: FIX
 
@@ -258,7 +231,8 @@ mod tests {
             &[
                 1, 0, 10, 13, 32, 0, 0, 192, 127, 13, 39, 0, 0, 0, 64, 17, 0, 31, 1, 19, 13,
             ],
-        );
+        )
+        .unwrap();
         let encode_frame: FdCanUSBFrame = frame.into();
         assert_eq!(
             encode_frame.0,
@@ -293,7 +267,8 @@ mod tests {
             None,
             None,
             None,
-        );
+        )
+        .unwrap();
         let encode_frame: FdCanUSBFrame = frame.into();
         assert_eq!(
             encode_frame.0,
@@ -304,7 +279,7 @@ mod tests {
     #[test]
     fn test_can_fd_frame_flags_decode() {
         let frame = FdCanUSBFrame(
-            "rcv 8001 01000A0D200000C07F0D270000004011001F01130D505050 e b F r f-1 t00100"
+            "rcv 8001 01000A0D200000C07F0D270000004011001F01130D505050 e b F r f-1 t0100"
                 .to_owned(),
         );
         let decode_frame: CanFdFrame = frame.try_into().expect("Failed to decode frame");
