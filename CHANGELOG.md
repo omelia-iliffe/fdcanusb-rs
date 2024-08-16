@@ -1,3 +1,11 @@
+# Version 0.6.0 - 16-08-2024
+- **Major**: Added a read Buffer. Default buffer size is 256, which should be enough for most cases.
+- **Major**: Added `new_with_buffers` to `FdCanUsb` to allow for custom buffers.
+- **Major**: Changed `read_ok` and `read_response` to use the buffer and fix an issue of missing bytes.
+- **Major**: Made `read_ok`, `read_response`, and `write` private.
+- **Minor**: Changed packet logs to `Debug` level.
+# Version 0.5.0 - 09-08-2024
+- **Major**: Fixed error types not being public.
 # Version 0.4.0 - 09-08-2024
 - **Major**: Added `error.rs` and error types to reduce usage of `std::io::Error`.
 - **Major**: Fixed an incorrect `/ 2` when calculating the `padding_len` for frames.
