@@ -18,6 +18,8 @@
 //! - `serial2`
 //!     - Enables re-exporting of the [`serial2`] crate and the [`FdCanUSB::open`] fn.
 
+#[macro_use]
+mod log;
 mod bus;
 mod error;
 mod frames;

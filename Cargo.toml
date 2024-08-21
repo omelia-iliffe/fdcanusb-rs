@@ -1,6 +1,6 @@
 [package]
 name = "fdcanusb"
-version = "0.6.0"
+version = "0.6.1"
 edition = "2021"
 description = "Protocol implementation for the FDCANUSB by MJBOTS"
 license = "Apache-2.0"
@@ -10,9 +10,8 @@ repository = "https://github.com/omelia-iliffe/fdcanusb-rs"
 [dependencies]
 hex = "0.4.0"
 serial2 = { version = "0.2", optional = true }
-log = "0.4"
+log = { version = "0.4", optional = true }
 thiserror = "1.0.0"
 
 [features]
-default = ["serial2"]
-serial2 = ["dep:serial2"]
+default = ["serial2", "log"]

@@ -107,9 +107,9 @@ where
 
     /// Write a frame to the FdCanUSB
     ///
-    /// Frames are logged at the `trace` level by default.
+    /// Frames are logged at the `debug` level by default.
     fn write_frame(&mut self, frame: FdCanUSBFrame) -> Result<(), WriteError> {
-        log::debug!("> {:?}", frame);
+        debug!("> {:?}", frame);
         self.transport.write_all(frame.as_bytes())?;
         Ok(())
     }
@@ -118,17 +118,17 @@ where
     /// Packets are seperated by `/r/n`.
     fn read_newline(&mut self) -> Result<usize, std::io::Error> {
         let buffer = self.buffer.as_mut();
-        let timeout = std::time::Instant::now() + std::time::Duration::from_millis(100);
+        let timeout = std::time::Instant::now() + std::time::Duration::from_millis(500);
         loop {
             if let Some(pos) = buffer[self.used_bytes..self.read_len].iter().position(|&c| c == b'\n') {
-                log::trace!("raw packet {:?}", &buffer[self.used_bytes..self.used_bytes + pos + 1]);
+                trace!("raw packet {:?}", &buffer[self.used_bytes..self.used_bytes + pos + 1]);
                 return Ok(self.used_bytes + pos + 1);
             }
             if std::time::Instant::now() > timeout {
                 return Err(std::io::Error::new(std::io::ErrorKind::TimedOut, "Timed out waiting for newline"));
             }
             let read_num = self.transport.read(&mut buffer[self.read_len..])?;
-            log::trace!("read {} {:?}", read_num, &buffer[self.read_len..self.read_len + read_num]);
+            trace!("read {} {:?}", read_num, &buffer[self.read_len..self.read_len + read_num]);
             self.read_len += read_num;
         }
     }
@@ -157,7 +157,7 @@ where
         self.used_bytes += packet.len();
         if packet.starts_with(b"rcv") {
             let response = std::str::from_utf8(packet)?;
-            log::debug!("< {:?}", response);
+            debug!("< {:?}", response);
             let response = FdCanUSBFrame::from(response);
             let response = response.try_into()?;
             Ok(response)
