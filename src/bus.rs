@@ -64,7 +64,6 @@ impl FdCanUSB<serial2::SerialPort, Vec<u8>> {
     }
 }
 
-
 impl<T> FdCanUSB<T, Vec<u8>>
 where
     T: std::io::Write + std::io::Read,
@@ -82,7 +81,12 @@ where
 {
     /// Create a new [FdCanUSB] instance, with a given transport and buffer.
     pub fn new_with_buffer(transport: T, buffer: Buffer) -> Self {
-        FdCanUSB { transport, buffer, read_len: 0, used_bytes: 0 }
+        FdCanUSB {
+            transport,
+            buffer,
+            read_len: 0,
+            used_bytes: 0,
+        }
     }
 
     /// Transfer a single frame.
@@ -120,15 +124,28 @@ where
         let buffer = self.buffer.as_mut();
         let timeout = std::time::Instant::now() + std::time::Duration::from_millis(500);
         loop {
-            if let Some(pos) = buffer[self.used_bytes..self.read_len].iter().position(|&c| c == b'\n') {
-                trace!("raw packet {:?}", &buffer[self.used_bytes..self.used_bytes + pos + 1]);
+            if let Some(pos) = buffer[self.used_bytes..self.read_len]
+                .iter()
+                .position(|&c| c == b'\n')
+            {
+                trace!(
+                    "raw packet {:?}",
+                    &buffer[self.used_bytes..self.used_bytes + pos + 1]
+                );
                 return Ok(self.used_bytes + pos + 1);
             }
             if std::time::Instant::now() > timeout {
-                return Err(std::io::Error::new(std::io::ErrorKind::TimedOut, "Timed out waiting for newline"));
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::TimedOut,
+                    "Timed out waiting for newline",
+                ));
             }
             let read_num = self.transport.read(&mut buffer[self.read_len..])?;
-            trace!("read {} {:?}", read_num, &buffer[self.read_len..self.read_len + read_num]);
+            trace!(
+                "read {} {:?}",
+                read_num,
+                &buffer[self.read_len..self.read_len + read_num]
+            );
             self.read_len += read_num;
         }
     }
@@ -137,7 +154,7 @@ where
     /// `read_ok` waits for this response, and returns an error if it is not received.
     fn read_ok(&mut self) -> Result<(), ReadError> {
         let packet = self.read_newline()?;
-        let packet= &self.buffer.as_ref()[self.used_bytes..packet];
+        let packet = &self.buffer.as_ref()[self.used_bytes..packet];
         self.used_bytes += packet.len();
         if packet.starts_with(b"OK") {
             Ok(())
@@ -153,7 +170,7 @@ where
     /// Responses are logged at the `trace` level by default.
     fn read_response(&mut self) -> Result<CanFdFrame, ReadError> {
         let packet = self.read_newline()?;
-        let packet= &self.buffer.as_ref()[self.used_bytes..packet];
+        let packet = &self.buffer.as_ref()[self.used_bytes..packet];
         self.used_bytes += packet.len();
         if packet.starts_with(b"rcv") {
             let response = std::str::from_utf8(packet)?;
