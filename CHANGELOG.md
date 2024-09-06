@@ -1,3 +1,8 @@
+# Version 0.6.2 - 06-09-2024
+- **Minor**: Fixed flag cases being incorrect, leading to unexpected behaviour.
+# Version 0.6.1 - 21-08-2024
+- **Minor**: Added default feature `log` to enable logging.
+- **Minor**: Reduced unnecessary info logs.
 # Version 0.6.0 - 16-08-2024
 - **Major**: Added a read Buffer. Default buffer size is 256, which should be enough for most cases.
 - **Major**: Added `new_with_buffers` to `FdCanUsb` to allow for custom buffers.

@@ -111,18 +111,18 @@ impl From<CanFdFrame> for FdCanUSBFrame {
         let flags = {
             let mut flags = String::new();
             match frame.brs {
-                Some(true) => flags.push_str(" b"),
-                Some(false) => flags.push_str(" B"),
+                Some(true) => flags.push_str(" B"),
+                Some(false) => flags.push_str(" b"),
                 None => {}
             }
             match frame.fd_can_frame {
-                Some(true) => flags.push_str(" f"),
-                Some(false) => flags.push_str(" F"),
+                Some(true) => flags.push_str(" F"),
+                Some(false) => flags.push_str(" f"),
                 None => {}
             }
             match frame.remote_frame {
-                Some(true) => flags.push_str(" r"),
-                Some(false) => flags.push_str(" R"),
+                Some(true) => flags.push_str(" R"),
+                Some(false) => flags.push_str(" r"),
                 None => {}
             }
             flags
@@ -170,17 +170,19 @@ impl TryFrom<FdCanUSBFrame> for CanFdFrame {
         // R/r frame was remote/data frame
         // tNNNNN timestamp of receipt measured in microseconds
         // fNN integer ID of which filter matched this frame
+        // The flag &str pass here should be a lower case character
         let check_flag = |c: &str| -> (Option<bool>, Option<&str>) {
             flags
                 .iter()
                 .find(|x| x.to_lowercase().starts_with(c))
                 .map_or((None, None), |x| {
                     (
-                        Some(x.starts_with(c)),
+                        Some(!x.starts_with(c)), // this is inverted as we want the UPPERCASE flag to be true
                         x.strip_prefix(c).filter(|x| !x.is_empty()),
                     )
                 })
         };
+        // The flag &str pass here should be a lower case character
         let check_flag_no_data = |c: &str| -> Result<Option<bool>, ParseError> {
             let (flag, data) = check_flag(c);
             if let Some(data) = data {
@@ -272,14 +274,14 @@ mod tests {
         let encode_frame: FdCanUSBFrame = frame.into();
         assert_eq!(
             encode_frame.0,
-            "can send 8001 01000A0D200000C07F0D270000004011001F01130D505050 b\n".to_owned()
+            "can send 8001 01000A0D200000C07F0D270000004011001F01130D505050 B\n".to_owned()
         );
     }
 
     #[test]
     fn test_can_fd_frame_flags_decode() {
         let frame = FdCanUSBFrame(
-            "rcv 8001 01000A0D200000C07F0D270000004011001F01130D505050 e b F r f-1 t0100"
+            "rcv 8001 01000A0D200000C07F0D270000004011001F01130D505050 e B F r f-1 t0100"
                 .to_owned(),
         );
         let decode_frame: CanFdFrame = frame.try_into().expect("Failed to decode frame");
