@@ -25,12 +25,12 @@ use crate::frames::{CanFdFrame, FdCanUSBFrame};
 
 #[derive(Debug)]
 
-pub struct FdCanUSB<T, Buffer = Vec<u8>>
+pub struct FdCanUSB<T = serial2::SerialPort, Buffer = Vec<u8>>
 where
     T: std::io::Write + std::io::Read,
     Buffer: AsRef<[u8]> + AsMut<[u8]>,
 {
-    /// The transport used the communicate with the FdCanUSB
+    /// The transport used to communicate with the FdCanUSB
     transport: T,
     /// The buffer used to store data read from the FdCanUSB
     buffer: Buffer,
@@ -97,15 +97,41 @@ where
         frame: CanFdFrame,
         response: bool,
     ) -> Result<Option<CanFdFrame>, TransferError> {
+        self.write(frame)?;
+        if response {
+            Ok(Some(self.read()?))
+        } else {
+            Ok(None)
+        }
+    }
+
+    /// Write a frame to the FdCanUSB
+    pub fn write(&mut self, frame: CanFdFrame) -> Result<(), TransferError> {
         let frame: FdCanUSBFrame = frame.into();
         self.write_frame(frame)?;
         self.read_len = 0;
         self.used_bytes = 0;
         self.read_ok()?;
-        if response {
-            Ok(Some(self.read_response()?))
+        Ok(())
+    }
+
+    /// Read a response frame from the [FdCanUSB].
+    /// Responses are logged at the `trace` level by default.
+    pub fn read(&mut self) -> Result<CanFdFrame, ReadError> {
+        let packet = self.read_newline()?;
+        let packet = &self.buffer.as_ref()[self.used_bytes..packet];
+        self.used_bytes += packet.len();
+        if packet.starts_with(b"rcv") {
+            let response = std::str::from_utf8(packet)?;
+            debug!("< {:?}", response);
+            let response = FdCanUSBFrame::from(response);
+            let response = response.try_into()?;
+            Ok(response)
         } else {
-            Ok(None)
+            Err(ReadError::LostSync {
+                expected: "rcv".to_string(),
+                received: String::from_utf8_lossy(packet).to_string(),
+            })
         }
     }
 
@@ -165,26 +191,6 @@ where
             })
         }
     }
-
-    /// Read a response frame from the [FdCanUSB].
-    /// Responses are logged at the `trace` level by default.
-    fn read_response(&mut self) -> Result<CanFdFrame, ReadError> {
-        let packet = self.read_newline()?;
-        let packet = &self.buffer.as_ref()[self.used_bytes..packet];
-        self.used_bytes += packet.len();
-        if packet.starts_with(b"rcv") {
-            let response = std::str::from_utf8(packet)?;
-            debug!("< {:?}", response);
-            let response = FdCanUSBFrame::from(response);
-            let response = response.try_into()?;
-            Ok(response)
-        } else {
-            Err(ReadError::LostSync {
-                expected: "rcv".to_string(),
-                received: String::from_utf8_lossy(packet).to_string(),
-            })
-        }
-    }
 }
 
 #[cfg(test)]
@@ -202,7 +208,7 @@ mod tests {
 
         fdcanusb.write_frame(frame).expect("Failed to write frame");
         fdcanusb.read_ok().expect("Failed to read ok");
-        let respsonse = fdcanusb.read_response();
+        let respsonse = fdcanusb.read();
         dbg!(&respsonse);
         assert!(respsonse.is_ok());
     }

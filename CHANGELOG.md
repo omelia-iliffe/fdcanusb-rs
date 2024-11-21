@@ -1,3 +1,5 @@
+# Version 0.6.3 - 21-11-2024
+- **Add** Added `FdCanUsb::Write` and `FdCanUsb::Read` methods
 # Version 0.6.2 - 06-09-2024
 - **Minor**: Fixed flag cases being incorrect, leading to unexpected behaviour.
 # Version 0.6.1 - 21-08-2024
