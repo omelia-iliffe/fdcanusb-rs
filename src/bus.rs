@@ -1,4 +1,5 @@
 use std::time::Duration;
+use libc::{ECHO, ECHOE, ICANON, ISIG, OPOST};
 use serial2::SerialPort;
 use crate::error::{ReadError, TransferError, WriteError};
 use crate::frames::{CanFdFrame, FdCanUSBFrame};
@@ -44,9 +45,16 @@ impl FdCanUSB<Vec<u8>> {
     /// Open a [`SerialPort`] and return an initialised `FdCanUsb
     pub fn open(
         path: impl AsRef<std::path::Path>,
-        serial_settings: impl serial2::IntoSettings,
     ) -> std::io::Result<Self> {
-        let mut transport = serial2::SerialPort::open(path, serial_settings)?;
+        let mut transport = SerialPort::open(path, |mut settings: serial2::Settings| {
+            settings.set_raw();
+            #[cfg(unix)] {
+                let t = settings.as_termios_mut();
+                t.c_lflag &= !(ICANON | ECHO | ECHOE | ISIG);
+                t.c_oflag &= !OPOST;
+            }
+            Ok(settings)
+        })?;
         transport.set_read_timeout(std::time::Duration::from_millis(100))?;
         transport.flush()?;
         transport.discard_buffers()?;
@@ -146,7 +154,7 @@ where
                 .position(|&c| c == b'\n')
             {
                 trace!(
-                    "raw packet {:?}",
+                    "packet {:?}",
                     &buffer[self.used_bytes..self.used_bytes + pos + 1]
                 );
                 return Ok(self.used_bytes + pos + 1);
