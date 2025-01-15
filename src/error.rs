@@ -1,47 +1,46 @@
-use thiserror::Error;
+use derive_more::derive::{Display, Error, From};
 
-#[derive(Error, Debug)]
+#[derive(Error, Debug, Display, From)]
 pub enum TransferError {
-    #[error(transparent)]
-    Write(#[from] WriteError),
-    #[error(transparent)]
-    Read(#[from] ReadError),
+    Write(WriteError),
+    Read(ReadError),
 }
 
-#[derive(Error, Debug)]
+#[derive(Error, Debug, Display, From)]
 pub enum WriteError {
-    #[error("Failed to write to port: {0}")]
-    Io(#[from] std::io::Error),
+    #[display("Failed to write to port: {_0}")]
+    Io(std::io::Error),
 }
 
-#[derive(Error, Debug)]
+#[derive(Error, Debug, Display, From)]
 pub enum ReadError {
-    #[error("Failed to read from port: {0}")]
-    Io(#[from] std::io::Error),
-    #[error("Failed to parse packet into Uft8: {0}")]
-    Uft8(#[from] std::str::Utf8Error),
-    #[error("Failed to parse response: {0}")]
-    Parse(#[from] ParseError),
-    #[error("Lost sync: expected {expected}, received {received}")]
+    #[display("Failed to read from port: {_0}")]
+    Io(std::io::Error),
+    #[display("Failed to parse packet into Uft8: {_0}")]
+    Uft8(std::str::Utf8Error),
+    #[display("Failed to parse response: {_0}")]
+    Parse(ParseError),
+    #[display("Lost sync: expected {expected}, received {received}")]
     LostSync { expected: String, received: String },
 }
 
-#[derive(Error, Debug)]
+#[derive(Error, Debug, Display, From)]
 pub enum ParseError {
-    #[error("Unexpected data {received}, expected {expected}")]
+    #[display("Unexpected data {received}, expected {expected}")]
     UnexpectedData { expected: String, received: String },
-    #[error("Unexpected EOL, expected {expected}")]
+    #[display("Unexpected EOL, expected {expected}")]
     UnexpectedEOL { expected: String },
-    #[error("Unexpected data with flag {flag}, {data}")]
+    #[display("Unexpected data with flag {flag}, {data}")]
     UnexpectedFlagData { flag: String, data: String },
-    #[error("Failed to parse ID: {0}")]
+    #[display("Failed to parse ID: {_0}")]
     ID(std::num::ParseIntError),
-    #[error("Failed to parse data: {0}")]
-    Data(#[from] hex::FromHexError),
-    #[error("Failed to parse timestamp: {0}")]
+    #[display("Failed to parse data: {_0}")]
+    #[from]
+    Data(hex::FromHexError),
+    #[display("Failed to parse timestamp: {_0}")]
     TimeStamp(std::num::ParseIntError),
 }
 
-#[derive(Error, Debug)]
-#[error("Max frame length of 64 exceeded: {0}")]
-pub struct InvalidFrameLength(pub usize);
+#[derive(Error, Debug, Display)]
+#[display("Max frame length of 64 exceeded: {_0}")]
+pub struct InvalidFrameLength(#[error(not(source))] pub usize);

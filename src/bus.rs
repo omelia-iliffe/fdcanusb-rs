@@ -198,7 +198,7 @@ mod tests {
 
     #[test]
     fn test_fdcanusb() {
-        let mut fdcanusb = FdCanUSB::open("/dev/fdcanusb", serial2::KeepSettings)
+        let mut fdcanusb = FdCanUSB::open("/dev/fdcanusb")
             .expect("Failed to open fdcanusb");
         let frame = FdCanUSBFrame::from(
             "can send 8001 01000A0D200000C07F0D270000004011001F01130D505050 b\n",
@@ -207,8 +207,8 @@ mod tests {
 
         fdcanusb.write_frame(frame).expect("Failed to write frame");
         fdcanusb.read_ok().expect("Failed to read ok");
-        let respsonse = fdcanusb.read();
-        dbg!(&respsonse);
-        assert!(respsonse.is_ok());
+        let response = fdcanusb.read();
+        dbg!(&response);
+        assert!(response.is_ok());
     }
 }
