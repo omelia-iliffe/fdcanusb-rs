@@ -1,8 +1,8 @@
-use std::time::Duration;
-use libc::{ECHO, ECHOE, ICANON, ISIG, OPOST};
-use serial2::SerialPort;
 use crate::error::{ReadError, TransferError, WriteError};
 use crate::frames::{CanFdFrame, FdCanUSBFrame};
+use libc::{ECHO, ECHOE, ICANON, ISIG, OPOST};
+use serial2::SerialPort;
+use std::time::Duration;
 
 /// FdCanUSB communications struct
 ///
@@ -12,18 +12,9 @@ use crate::frames::{CanFdFrame, FdCanUSBFrame};
 /// ```
 /// use fdcanusb::{FdCanUSB, serial2};
 /// # fn main() -> Result<(), std::io::Error> {
-/// let transport = serial2::SerialPort::open("/dev/fdcanusb", serial2::KeepSettings)?;
-/// let mut fdcanusb = FdCanUSB::new(transport);
+/// let mut fdcanusb = FdCanUSB::open("/dev/fdcanusb")?;
 /// # Ok(())
 /// # }
-/// ```
-/// ## `serial2` Integration
-/// To use the `FdCanUSB` with a [`serial2::SerialPort`](https://docs.rs/serial2/latest/serial2/), you can use the [`FdCanUSB::open`] method.
-/// ### Example
-/// ```
-/// use fdcanusb::FdCanUSB;
-///
-/// let mut fdcanusb = FdCanUSB::open("/dev/fdcanusb", serial2::KeepSettings).expect("Failed to open serial port");
 /// ```
 #[derive(derive_more::Debug)]
 pub struct FdCanUSB<Buffer = Vec<u8>>
@@ -43,12 +34,11 @@ where
 
 impl FdCanUSB<Vec<u8>> {
     /// Open a [`SerialPort`] and return an initialised `FdCanUsb
-    pub fn open(
-        path: impl AsRef<std::path::Path>,
-    ) -> std::io::Result<Self> {
+    pub fn open(path: impl AsRef<std::path::Path>) -> std::io::Result<Self> {
         let mut transport = SerialPort::open(path, |mut settings: serial2::Settings| {
             settings.set_raw();
-            #[cfg(unix)] {
+            #[cfg(unix)]
+            {
                 let t = settings.as_termios_mut();
                 t.c_lflag &= !(ICANON | ECHO | ECHOE | ISIG);
                 t.c_oflag &= !OPOST;

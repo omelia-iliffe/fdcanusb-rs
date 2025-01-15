@@ -1,3 +1,9 @@
+# Version 0.7.0 - 15-01-2025
+- **Major**: Removed generic transport in favour of serial2::SerialPort
+- **Major**: Removed serial2 feature
+- **Major**: Removed serial_settings arg in `FdCanUsb::open` method
+- **Major**: Added sensible default serial2::Settings in `FdCanUsb::open`, fixing a sync issue on unix
+- **Minor**: changed from `thiserror` to `derive_more`
 # Version 0.6.3 - 21-11-2024
 - **Add** Added `FdCanUsb::Write` and `FdCanUsb::Read` methods
 # Version 0.6.2 - 06-09-2024
