@@ -28,5 +28,4 @@ pub use bus::FdCanUSB;
 pub use error::*;
 pub use frames::{CanFdFrame, FdCanUSBFrame};
 
-#[cfg(feature = "serial2")]
 pub use serial2;

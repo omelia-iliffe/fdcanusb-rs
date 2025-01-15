@@ -9,9 +9,10 @@ repository = "https://github.com/omelia-iliffe/fdcanusb-rs"
 
 [dependencies]
 hex = "0.4.0"
-serial2 = { version = "0.2", optional = true }
+serial2 = { version = "0.2"}
 log = { version = "0.4", optional = true }
-thiserror = "1.0.0"
+thiserror = "2"
+derive_more = { version = "1.0.0", features = ["from", "error", "display", "debug"] }
 
 [features]
-default = ["serial2", "log"]
+default = ["log"]

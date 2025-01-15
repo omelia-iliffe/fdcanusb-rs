@@ -1,3 +1,5 @@
+use std::time::Duration;
+use serial2::SerialPort;
 use crate::error::{ReadError, TransferError, WriteError};
 use crate::frames::{CanFdFrame, FdCanUSBFrame};
 
@@ -22,16 +24,14 @@ use crate::frames::{CanFdFrame, FdCanUSBFrame};
 ///
 /// let mut fdcanusb = FdCanUSB::open("/dev/fdcanusb", serial2::KeepSettings).expect("Failed to open serial port");
 /// ```
-
-#[derive(Debug)]
-
-pub struct FdCanUSB<T = serial2::SerialPort, Buffer = Vec<u8>>
+#[derive(derive_more::Debug)]
+pub struct FdCanUSB<Buffer = Vec<u8>>
 where
-    T: std::io::Write + std::io::Read,
     Buffer: AsRef<[u8]> + AsMut<[u8]>,
 {
     /// The transport used to communicate with the FdCanUSB
-    transport: T,
+    #[debug(skip)]
+    transport: SerialPort,
     /// The buffer used to store data read from the FdCanUSB
     buffer: Buffer,
     /// The total number of valid bytes in the buffer
@@ -40,13 +40,10 @@ where
     used_bytes: usize,
 }
 
-#[cfg(feature = "serial2")]
-impl FdCanUSB<serial2::SerialPort, Vec<u8>> {
-    /// For convenience, we provide a [`FdCanUSB`] implementation for [`serial2::SerialPort`].
-    /// Enable with the `serial2` feature.
-
-    pub fn open<P: AsRef<std::path::Path>>(
-        path: P,
+impl FdCanUSB<Vec<u8>> {
+    /// Open a [`SerialPort`] and return an initialised `FdCanUsb
+    pub fn open(
+        path: impl AsRef<std::path::Path>,
         serial_settings: impl serial2::IntoSettings,
     ) -> std::io::Result<Self> {
         let mut transport = serial2::SerialPort::open(path, serial_settings)?;
@@ -56,31 +53,18 @@ impl FdCanUSB<serial2::SerialPort, Vec<u8>> {
         Ok(Self::new(transport))
     }
 
-    /// Flush the FdCanUSB.
-    /// This can be important to do when initializing the FdCanUSB, as any data in the buffer can cause lost sync issues.
-    pub fn flush(&mut self) -> std::io::Result<()> {
-        self.transport.flush()?;
-        self.transport.discard_buffers()
-    }
-}
-
-impl<T> FdCanUSB<T, Vec<u8>>
-where
-    T: std::io::Write + std::io::Read,
-{
     /// Create a new [FdCanUSB] instance
-    pub fn new(transport: T) -> Self {
+    pub fn new(transport: SerialPort) -> Self {
         Self::new_with_buffer(transport, vec![0; 256])
     }
 }
 
-impl<T, Buffer> FdCanUSB<T, Buffer>
+impl<Buffer> FdCanUSB<Buffer>
 where
-    T: std::io::Write + std::io::Read,
     Buffer: AsRef<[u8]> + AsMut<[u8]>,
 {
     /// Create a new [FdCanUSB] instance, with a given transport and buffer.
-    pub fn new_with_buffer(transport: T, buffer: Buffer) -> Self {
+    pub fn new_with_buffer(transport: SerialPort, buffer: Buffer) -> Self {
         FdCanUSB {
             transport,
             buffer,
@@ -89,6 +73,13 @@ where
         }
     }
 
+    /// Flush the FdCanUSB.
+    /// This can be important to do when initializing the FdCanUSB, as any data in the buffer can cause lost sync issues.
+    pub fn flush(&mut self) -> std::io::Result<()> {
+        self.transport.flush()?;
+        self.transport.discard_buffers()?;
+        Ok(())
+    }
     /// Transfer a single frame.
     /// If `response` is `true`, the function will wait for a response frame.
     /// Otherwise, it will return `None`.
@@ -118,7 +109,7 @@ where
     /// Read a response frame from the [FdCanUSB].
     /// Responses are logged at the `trace` level by default.
     pub fn read(&mut self) -> Result<CanFdFrame, ReadError> {
-        let packet = self.read_newline()?;
+        let packet = self.read_newline(Duration::from_millis(500))?;
         let packet = &self.buffer.as_ref()[self.used_bytes..packet];
         self.used_bytes += packet.len();
         if packet.starts_with(b"rcv") {
@@ -146,9 +137,9 @@ where
 
     /// Reads bytes into the buffer and returns the end pos of one packet.
     /// Packets are seperated by `/r/n`.
-    fn read_newline(&mut self) -> Result<usize, std::io::Error> {
+    fn read_newline(&mut self, timeout: Duration) -> Result<usize, std::io::Error> {
         let buffer = self.buffer.as_mut();
-        let timeout = std::time::Instant::now() + std::time::Duration::from_millis(500);
+        let deadline = std::time::Instant::now() + timeout;
         loop {
             if let Some(pos) = buffer[self.used_bytes..self.read_len]
                 .iter()
@@ -160,7 +151,7 @@ where
                 );
                 return Ok(self.used_bytes + pos + 1);
             }
-            if std::time::Instant::now() > timeout {
+            if std::time::Instant::now() > deadline {
                 return Err(std::io::Error::new(
                     std::io::ErrorKind::TimedOut,
                     "Timed out waiting for newline",
@@ -179,7 +170,7 @@ where
     /// The [FdCanUSB] responds with `OK` after a correct frame is parsed.
     /// `read_ok` waits for this response, and returns an error if it is not received.
     fn read_ok(&mut self) -> Result<(), ReadError> {
-        let packet = self.read_newline()?;
+        let packet = self.read_newline(Duration::from_millis(50))?;
         let packet = &self.buffer.as_ref()[self.used_bytes..packet];
         self.used_bytes += packet.len();
         if packet.starts_with(b"OK") {
