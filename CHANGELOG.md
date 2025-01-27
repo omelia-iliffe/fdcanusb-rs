@@ -1,3 +1,5 @@
+# Version 0.7.1 - 28-01-2025
+- **Minor**: Fixed broken windows build
 # Version 0.7.0 - 15-01-2025
 - **Major**: Removed generic transport in favour of serial2::SerialPort
 - **Major**: Removed serial2 feature

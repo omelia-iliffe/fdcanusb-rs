@@ -1,5 +1,6 @@
 use crate::error::{ReadError, TransferError, WriteError};
 use crate::frames::{CanFdFrame, FdCanUSBFrame};
+#[cfg(unix)]
 use libc::{ECHO, ECHOE, ICANON, ISIG, OPOST};
 use serial2::SerialPort;
 use std::time::Duration;
@@ -129,6 +130,8 @@ where
     /// Frames are logged at the `debug` level by default.
     fn write_frame(&mut self, frame: FdCanUSBFrame) -> Result<(), WriteError> {
         debug!("> {:?}", frame);
+        // let bytes = frame.as_bytes();
+        // trace!("> {:?}", bytes);
         self.transport.write_all(frame.as_bytes())?;
         Ok(())
     }
@@ -143,6 +146,12 @@ where
                 .iter()
                 .position(|&c| c == b'\n')
             {
+                // // if just a \n is read, discard it and continue
+                // if pos + 1 == 1 {
+                //     trace!("discarding \\n");
+                //     self.used_bytes += 1;
+                //     continue
+                // }
                 trace!(
                     "packet {:?}",
                     &buffer[self.used_bytes..self.used_bytes + pos + 1]
@@ -171,6 +180,8 @@ where
         let packet = self.read_newline(Duration::from_millis(50))?;
         let packet = &self.buffer.as_ref()[self.used_bytes..packet];
         self.used_bytes += packet.len();
+        // let packet_string = String::from_utf8_lossy(packet);
+        // debug!("< {:?}", packet_string);
         if packet.starts_with(b"OK") {
             Ok(())
         } else {
@@ -188,8 +199,7 @@ mod tests {
 
     #[test]
     fn test_fdcanusb() {
-        let mut fdcanusb = FdCanUSB::open("/dev/fdcanusb")
-            .expect("Failed to open fdcanusb");
+        let mut fdcanusb = FdCanUSB::open("/dev/fdcanusb").expect("Failed to open fdcanusb");
         let frame = FdCanUSBFrame::from(
             "can send 8001 01000A0D200000C07F0D270000004011001F01130D505050 b\n",
         );
