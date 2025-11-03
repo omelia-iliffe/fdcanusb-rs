@@ -1,7 +1,7 @@
 [package]
 name = "fdcanusb"
 version = "0.7.1"
-edition = "2021"
+edition = "2024"
 description = "Protocol implementation for the FDCANUSB by MJBOTS"
 license = "Apache-2.0"
 readme = "README.md"
@@ -13,6 +13,7 @@ serial2 = { version = "0.2", features = ["unix"]}
 log = { version = "0.4", optional = true }
 derive_more = { version = "1.0.0", features = ["from", "error", "display", "debug"] }
 libc = "0.2.169"
+embedded-can = { version = "0.4", optional =true }
 
 [features]
 default = ["log"]

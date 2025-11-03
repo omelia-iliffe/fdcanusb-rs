@@ -13,11 +13,14 @@
 #[macro_use]
 mod log;
 mod bus;
+#[cfg(feature = "embedded-can")]
+pub mod embedded_can;
 mod error;
 mod frames;
+mod id;
 
 pub use bus::FdCanUSB;
 pub use error::*;
-pub use frames::{CanFdFrame, FdCanUSBFrame};
+pub use frames::{CanFdFrame, CanFrame, FdCanUSBFrame};
 
 pub use serial2;
