@@ -17,7 +17,7 @@ mod bus;
 pub mod embedded_can;
 mod error;
 mod frames;
-mod id;
+pub mod id;
 
 pub use bus::FdCanUSB;
 pub use error::*;
