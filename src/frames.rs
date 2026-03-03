@@ -1,7 +1,7 @@
 use crate::{
     InvalidFrameLength,
     error::ParseError,
-    id::{ExtendedId, Id, StandardId},
+    id::{Id, decode_extended_id, decode_standerd_id, encode_id},
 };
 
 fn decode_hex(s: &str) -> Result<Vec<u8>, hex::FromHexError> {
@@ -242,7 +242,7 @@ struct FdCanUsbFrameParse {
 
 impl From<&CanFrame> for FdCanUSBFrame {
     fn from(frame: &CanFrame) -> FdCanUSBFrame {
-        let id = frame.id.encode_hex();
+        let id = encode_id(frame.id);
         FdCanUSBFrame::new(id, &frame.data, None, Some(false), frame.remote_frame)
     }
 }
@@ -265,11 +265,11 @@ impl TryFrom<FdCanUSBFrame> for CanFrame {
             return Err(ParseError::UnexpectedFdFrame);
         }
         let id = if extended_id {
-            ExtendedId::decode(&arbitration_id)
+            decode_extended_id(&arbitration_id)
                 .ok_or(ParseError::InvalidId(hex::encode(arbitration_id)))?
                 .into()
         } else {
-            StandardId::decode(&arbitration_id)
+            decode_standerd_id(&arbitration_id)
                 .ok_or(ParseError::InvalidId(hex::encode(arbitration_id)))?
                 .into()
         };
@@ -284,7 +284,7 @@ impl TryFrom<FdCanUSBFrame> for CanFrame {
 
 impl From<&CanFdFrame> for FdCanUSBFrame {
     fn from(frame: &CanFdFrame) -> FdCanUSBFrame {
-        let id = frame.id.encode_hex();
+        let id = encode_id(frame.id);
         FdCanUSBFrame::new(id, &frame.data, frame.brs, Some(true), frame.remote_frame)
     }
 }
@@ -307,11 +307,11 @@ impl TryFrom<FdCanUSBFrame> for CanFdFrame {
             return Err(ParseError::UnexpectedClassicFrame);
         }
         let id = if extended_id {
-            ExtendedId::decode(&arbitration_id)
+            decode_extended_id(&arbitration_id)
                 .ok_or(ParseError::InvalidId(hex::encode(arbitration_id)))?
                 .into()
         } else {
-            StandardId::decode(&arbitration_id)
+            decode_standerd_id(&arbitration_id)
                 .ok_or(ParseError::InvalidId(hex::encode(arbitration_id)))?
                 .into()
         };
