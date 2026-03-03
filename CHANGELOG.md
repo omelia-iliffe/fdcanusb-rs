@@ -1,3 +1,16 @@
+# Unreleased
+## Features
+- Added `CanFrame` for classic CAN frames
+- Use `Id` types from the `embedded-can` crate
+- Add an `embedded-can` feature, implementing `Can` and `Frame` for `FdCanUsb` and `CanFrame`. `embedded-can` currently only supports classic can frames
+## Breaking changes
+- renamed `FdCanUsb::transfer_single` to `FdCanUsb::transfer_single_fd`, which now takes a reference to `CanFdFrame`
+- `FdCanUsb::write` now takes `impl Into<FdCanUSBFrame` allowing for both Classic and FD frames
+- `FdCanUsb::read` returns `impl TryFrom<FdCanUSBFrame, Error = ParseError>` allowing the caller to expect either `CanFrame` or `CanFdFrame`
+- renamed `CanFdFrame::arbitration_id` to `CanFdFrame::id` & changed type to `embedded_can::Id`
+- removed `CanFdFrame::extended_id` & `CanFdFrame::fd_can_frame`
+- changed `CanFdFrame::new` id parameter to `impl Into<embedded_can::Id>`
+- removed `CanFdFrame::new_with_flags` in favour of builder style `with_brs`, `with_timestamp` & `with_remote_frame`
 # Version 0.7.1 - 28-01-2025
 - **Minor**: Fixed broken windows build
 # Version 0.7.0 - 15-01-2025
