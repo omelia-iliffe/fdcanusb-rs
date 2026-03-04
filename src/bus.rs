@@ -33,7 +33,7 @@ where
 }
 
 impl FdCanUSB<Vec<u8>> {
-    /// Open a [`SerialPort`] and return an initialised `FdCanUsb
+    /// Open a [`SerialPort`] and return an initialised `FdCanUsb`
     pub fn open(path: impl AsRef<std::path::Path>) -> std::io::Result<Self> {
         let mut transport = SerialPort::open(path, |mut settings: serial2::Settings| {
             settings.set_raw();
@@ -62,7 +62,7 @@ impl<Buffer> FdCanUSB<Buffer>
 where
     Buffer: AsRef<[u8]> + AsMut<[u8]>,
 {
-    /// Create a new [FdCanUSB] instance, with a given transport and buffer.
+    /// Create a new [`FdCanUSB`] instance, with a given transport and buffer.
     pub fn new_with_buffer(transport: SerialPort, buffer: Buffer) -> Self {
         FdCanUSB {
             transport,
@@ -74,8 +74,14 @@ where
 
     /// Flush the FdCanUSB.
     /// This can be important to do when initializing the FdCanUSB, as any data in the buffer can cause lost sync issues.
+    /// Note that this blocks until the read times out.
     pub fn flush(&mut self) -> std::io::Result<()> {
         self.transport.flush()?;
+        while self
+            .transport
+            .read(self.buffer.as_mut())
+            .is_ok_and(|r| r != 0)
+        {}
         self.transport.discard_buffers()?;
         Ok(())
     }
@@ -103,6 +109,7 @@ where
         frame: &CanFrame,
         response: bool,
     ) -> Result<Option<CanFrame>, TransferError> {
+        self.flush().unwrap();
         self.write(frame)?;
         if response {
             Ok(Some(self.read()?))
