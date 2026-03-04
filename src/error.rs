@@ -26,6 +26,10 @@ pub enum ReadError {
 
 #[derive(Error, Debug, Display, From)]
 pub enum ParseError {
+    #[display("Received Classic can frame, expected Fd can frame")]
+    UnexpectedClassicFrame,
+    #[display("Received FD can frame, expected classic frame")]
+    UnexpectedFdFrame,
     #[display("Unexpected data {received}, expected {expected}")]
     UnexpectedData { expected: String, received: String },
     #[display("Unexpected EOL, expected {expected}")]
@@ -33,11 +37,12 @@ pub enum ParseError {
     #[display("Unexpected data with flag {flag}, {data}")]
     UnexpectedFlagData { flag: String, data: String },
     #[display("Failed to parse ID: {_0}")]
-    ID(std::num::ParseIntError),
+    InvalidId(#[error(not(source))] String),
     #[display("Failed to parse data: {_0}")]
     #[from]
     Data(hex::FromHexError),
     #[display("Failed to parse timestamp: {_0}")]
+    #[from]
     TimeStamp(std::num::ParseIntError),
 }
 

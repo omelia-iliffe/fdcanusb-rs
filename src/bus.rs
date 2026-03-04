@@ -1,7 +1,6 @@
+use crate::ParseError;
 use crate::error::{ReadError, TransferError, WriteError};
-use crate::frames::{CanFdFrame, FdCanUSBFrame};
-#[cfg(unix)]
-use libc::{ECHO, ECHOE, ICANON, ISIG, OPOST};
+use crate::frames::{CanFdFrame, CanFrame, FdCanUSBFrame};
 use serial2::SerialPort;
 use std::time::Duration;
 
@@ -34,13 +33,14 @@ where
 }
 
 impl FdCanUSB<Vec<u8>> {
-    /// Open a [`SerialPort`] and return an initialised `FdCanUsb
+    /// Open a [`SerialPort`] and return an initialised `FdCanUsb`
     pub fn open(path: impl AsRef<std::path::Path>) -> std::io::Result<Self> {
         let mut transport = SerialPort::open(path, |mut settings: serial2::Settings| {
             settings.set_raw();
             #[cfg(unix)]
             {
                 let t = settings.as_termios_mut();
+                use libc::{ECHO, ECHOE, ICANON, ISIG, OPOST};
                 t.c_lflag &= !(ICANON | ECHO | ECHOE | ISIG);
                 t.c_oflag &= !OPOST;
             }
@@ -62,7 +62,7 @@ impl<Buffer> FdCanUSB<Buffer>
 where
     Buffer: AsRef<[u8]> + AsMut<[u8]>,
 {
-    /// Create a new [FdCanUSB] instance, with a given transport and buffer.
+    /// Create a new [`FdCanUSB`] instance, with a given transport and buffer.
     pub fn new_with_buffer(transport: SerialPort, buffer: Buffer) -> Self {
         FdCanUSB {
             transport,
@@ -74,17 +74,23 @@ where
 
     /// Flush the FdCanUSB.
     /// This can be important to do when initializing the FdCanUSB, as any data in the buffer can cause lost sync issues.
+    /// Note that this blocks until the read times out.
     pub fn flush(&mut self) -> std::io::Result<()> {
         self.transport.flush()?;
+        while self
+            .transport
+            .read(self.buffer.as_mut())
+            .is_ok_and(|r| r != 0)
+        {}
         self.transport.discard_buffers()?;
         Ok(())
     }
-    /// Transfer a single frame.
+    /// Transfer a single fd can frame.
     /// If `response` is `true`, the function will wait for a response frame.
     /// Otherwise, it will return `None`.
-    pub fn transfer_single(
+    pub fn transfer_single_fd(
         &mut self,
-        frame: CanFdFrame,
+        frame: &CanFdFrame,
         response: bool,
     ) -> Result<Option<CanFdFrame>, TransferError> {
         self.write(frame)?;
@@ -95,8 +101,25 @@ where
         }
     }
 
+    /// Transfer a single classic can frame.
+    /// If `response` is `true`, the function will wait for a response frame.
+    /// Otherwise, it will return `None`.
+    pub fn transfer_single(
+        &mut self,
+        frame: &CanFrame,
+        response: bool,
+    ) -> Result<Option<CanFrame>, TransferError> {
+        self.flush().unwrap();
+        self.write(frame)?;
+        if response {
+            Ok(Some(self.read()?))
+        } else {
+            Ok(None)
+        }
+    }
+
     /// Write a frame to the FdCanUSB
-    pub fn write(&mut self, frame: CanFdFrame) -> Result<(), TransferError> {
+    pub fn write(&mut self, frame: impl Into<FdCanUSBFrame>) -> Result<(), TransferError> {
         let frame: FdCanUSBFrame = frame.into();
         self.write_frame(frame)?;
         self.read_len = 0;
@@ -107,7 +130,7 @@ where
 
     /// Read a response frame from the [FdCanUSB].
     /// Responses are logged at the `trace` level by default.
-    pub fn read(&mut self) -> Result<CanFdFrame, ReadError> {
+    pub fn read<F: TryFrom<FdCanUSBFrame, Error = ParseError>>(&mut self) -> Result<F, ReadError> {
         let packet = self.read_newline(Duration::from_millis(500))?;
         let packet = &self.buffer.as_ref()[self.used_bytes..packet];
         self.used_bytes += packet.len();
@@ -130,8 +153,6 @@ where
     /// Frames are logged at the `debug` level by default.
     fn write_frame(&mut self, frame: FdCanUSBFrame) -> Result<(), WriteError> {
         debug!("> {:?}", frame);
-        // let bytes = frame.as_bytes();
-        // trace!("> {:?}", bytes);
         self.transport.write_all(frame.as_bytes())?;
         Ok(())
     }
@@ -207,7 +228,7 @@ mod tests {
 
         fdcanusb.write_frame(frame).expect("Failed to write frame");
         fdcanusb.read_ok().expect("Failed to read ok");
-        let response = fdcanusb.read();
+        let response: Result<CanFdFrame, _> = fdcanusb.read();
         dbg!(&response);
         assert!(response.is_ok());
     }
